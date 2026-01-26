@@ -14,11 +14,13 @@ export interface RegisterData {
 
 export const authApi = {
     login(data: LoginData) {
-        const formData = new FormData()
-        formData.append('username', data.username)
-        formData.append('password', data.password)
-        return api.post('/auth/login', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
+        // Use URL-encoded form data as required by OAuth2PasswordRequestForm
+        const params = new URLSearchParams()
+        params.append('username', data.username)
+        params.append('password', data.password)
+
+        return api.post('/auth/login', params.toString(), {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
         })
     },
 
