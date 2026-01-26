@@ -71,9 +71,6 @@ const token = ref<string | null>(localStorage.getItem('token'))
 const testResult = ref('')
 
 const baseURL = computed(() => {
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:8000/api/v1'
-  }
   return '/api/v1'
 })
 

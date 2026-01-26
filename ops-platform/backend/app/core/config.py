@@ -22,7 +22,12 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # CORS
-    CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:3000"]
+    CORS_ORIGINS: list = [
+        "http://localhost:5173",
+        "http://localhost:3000", 
+        "http://localhost",
+        "http://192.168.3.41"
+    ]
     
     # Pagination
     DEFAULT_PAGE_SIZE: int = 20

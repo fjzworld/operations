@@ -2,14 +2,8 @@ import axios from 'axios'
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
 
-// Determine the base URL based on environment
+// Use relative path - Nginx will handle routing to backend
 const getBaseURL = () => {
-    // If running in Docker with backend hostname available, use it
-    // Otherwise, use localhost (for local development)
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return 'http://localhost:8000/api/v1'
-    }
-    // For other cases (like accessing via Docker network), use relative path
     return '/api/v1'
 }
 

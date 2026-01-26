@@ -13,7 +13,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U opsuser"]
+      test: [ "CMD-SHELL", "pg_isready -U opsuser" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,7 +26,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -94,7 +94,19 @@ services:
     ports:
       - "5173:5173"
     environment:
-      VITE_API_BASE_URL: http://localhost:8000
+      VITE_API_BASE_URL: /api/v1
+
+  nginx:
+    image: nginx:alpine
+    container_name: ops-nginx
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:latest
