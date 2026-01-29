@@ -3,6 +3,7 @@ from app.models.user import User
 from app.models.resource import Resource, ResourceType, ResourceStatus
 from app.models.alert import Alert, AlertRule, AlertSeverity, AlertStatus
 from app.models.task import Task, TaskStatus
+from app.models.metric import Metric, ProcessMetric
 
 __all__ = [
     "User",
@@ -15,4 +16,6 @@ __all__ = [
     "AlertStatus",
     "Task",
     "TaskStatus",
+    "Metric",
+    "ProcessMetric",
 ]

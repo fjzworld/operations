@@ -17,7 +17,14 @@ export const resourceApi = {
         return api.put(`/resources/${id}`, data)
     },
 
-    delete(id: number) {
+    delete(id: number, deletePayload?: any) {
+        if (deletePayload) {
+            return api.request({
+                method: 'delete',
+                url: `/resources/${id}`,
+                data: deletePayload
+            })
+        }
         return api.delete(`/resources/${id}`)
     },
 
@@ -27,5 +34,21 @@ export const resourceApi = {
 
     getStats() {
         return api.get('/resources/stats/summary')
+    },
+
+    probe(credentials: any) {
+        return api.post('/resources/probe', credentials)
+    },
+
+    deployAgent(id: number, credentials: any) {
+        return api.post(`/resources/${id}/deploy-agent`, credentials)
+    },
+
+    getHistory(id: number, hours: number = 24) {
+        return api.get(`/resources/${id}/metrics/history`, { params: { hours } })
+    },
+
+    getProcesses(id: number) {
+        return api.get(`/resources/${id}/processes`)
     }
 }

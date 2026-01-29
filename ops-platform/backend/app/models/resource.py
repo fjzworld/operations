@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, JSON, DateTime, Enum as SQLEnum
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
 import enum
@@ -56,6 +57,15 @@ class Resource(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_seen = Column(DateTime(timezone=True))
+    
+    # Relationships
+    metrics = relationship("Metric", back_populates="resource", cascade="all, delete-orphan")
+    
+    # SSH Credentials (Encrypted)
+    ssh_port = Column(Integer, default=22)
+    ssh_username = Column(String(100), default="root")
+    ssh_password_enc = Column(String(500), nullable=True) # Encrypted password
+    ssh_private_key_enc = Column(String(2000), nullable=True) # Encrypted private key path or content
     
     def __repr__(self):
         return f"<Resource(name='{self.name}', type='{self.type}', status='{self.status}')>"

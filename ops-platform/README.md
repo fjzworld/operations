@@ -52,7 +52,7 @@ docker-compose logs -f
 ```
 
 服务访问地址:
-- 前端: http://localhost:5173
+- 前端: http://localhost
 - 后端 API: http://localhost:8000
 - API 文档: http://localhost:8000/api/docs
 - Prometheus: http://localhost:9090

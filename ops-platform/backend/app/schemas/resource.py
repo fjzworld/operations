@@ -22,7 +22,18 @@ class ResourceBase(BaseModel):
 
 class ResourceCreate(ResourceBase):
     """Schema for creating a resource"""
-    pass
+    # SSH credentials for auto-discovery and management
+    ssh_port: int = Field(22, ge=1, le=65535)
+    ssh_username: Optional[str] = "root"
+    ssh_password: Optional[str] = None
+    ssh_private_key: Optional[str] = None
+    backend_url: Optional[str] = Field(None, description="Backend URL for agent to connect back")
+    
+    # Override base fields to be optional (auto-detected if not provided)
+    cpu_cores: Optional[int] = None
+    memory_gb: Optional[float] = None
+    disk_gb: Optional[float] = None
+    os_type: Optional[str] = None
 
 
 class ResourceUpdate(BaseModel):
@@ -61,3 +72,37 @@ class ResourceMetrics(BaseModel):
     cpu_usage: float = Field(..., ge=0, le=100)
     memory_usage: float = Field(..., ge=0, le=100)
     disk_usage: float = Field(..., ge=0, le=100)
+    network_in: Optional[float] = Field(0, ge=0)
+    network_out: Optional[float] = Field(0, ge=0)
+    top_processes: Optional[List[Dict]] = []
+
+
+class ResourceProbeRequest(BaseModel):
+    """Request to probe a server for auto-detection"""
+    ip_address: str = Field(..., description="Server IP address")
+    ssh_port: int = Field(22, ge=1, le=65535)
+    ssh_username: str = Field(..., min_length=1)
+    ssh_password: Optional[str] = None
+    ssh_private_key: Optional[str] = None
+    backend_url: Optional[str] = Field(None, description="Custom backend URL for agent callbacks")
+
+
+class ResourceProbeResponse(BaseModel):
+    """Response from server probe"""
+    hostname: str
+    cpu_cores: int
+    memory_gb: float
+    disk_gb: float
+    os_type: str
+    os_version: str
+    kernel_version: str
+
+
+class ResourceDeleteRequest(BaseModel):
+    """Request to delete a resource with optional agent uninstall"""
+    uninstall_agent: bool = Field(True, description="Whether to uninstall agent from remote server")
+    ssh_port: int = Field(22, ge=1, le=65535)
+    ssh_username: str = Field("root", min_length=1)
+    ssh_password: Optional[str] = None
+    ssh_private_key: Optional[str] = None
+

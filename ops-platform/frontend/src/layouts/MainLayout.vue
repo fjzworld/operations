@@ -1,22 +1,20 @@
 <template>
   <el-container class="main-layout">
-    <el-aside width="200px" class="sidebar">
+    <el-aside width="220px" class="sidebar">
       <div class="logo">
-        <h2>运维平台</h2>
+        <h2 class="text-glow">OpsPro</h2>
       </div>
       <el-menu
         :default-active="activeMenu"
         router
-        background-color="#304156"
-        text-color="#bfcbd9"
-        active-text-color="#409EFF"
+        class="custom-menu"
       >
         <el-menu-item index="/dashboard">
           <el-icon><DataLine /></el-icon>
           <span>仪表盘</span>
         </el-menu-item>
         <el-menu-item index="/resources">
-          <el-icon><Server /></el-icon>
+          <el-icon><Box /></el-icon>
           <span>资源管理</span>
         </el-menu-item>
         <el-menu-item index="/monitoring">
@@ -55,7 +53,11 @@
       </el-header>
 
       <el-main class="main-content">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </el-main>
     </el-container>
   </el-container>
@@ -65,7 +67,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { DataLine, Server, Monitor, Bell, User } from '@element-plus/icons-vue'
+import { DataLine, Monitor, Bell, User, Box } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -95,31 +97,64 @@ const handleCommand = (command: string) => {
 <style scoped>
 .main-layout {
   height: 100vh;
+  background-color: var(--bg-app);
 }
 
 .sidebar {
-  background-color: #304156;
-  overflow-y: auto;
+  background-color: var(--bg-surface);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
 }
 
 .logo {
-  height: 60px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  border-bottom: 1px solid #434a50;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-surface);
 }
 
 .logo h2 {
   font-size: 20px;
+  font-weight: 700;
   margin: 0;
+  letter-spacing: 0.5px;
+}
+
+/* Menu Customization */
+.custom-menu {
+  border-right: none;
+  background-color: transparent;
+}
+
+:deep(.el-menu-item) {
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+:deep(.el-menu-item:hover) {
+  background-color: var(--el-menu-hover-bg-color);
+}
+
+:deep(.el-menu-item.is-active) {
+  background-color: var(--bg-card);
+  border-left-color: var(--color-success);
+  color: var(--color-primary);
+}
+
+:deep(.el-sub-menu .el-sub-menu__title:hover) {
+  background-color: var(--el-menu-hover-bg-color);
 }
 
 .header {
-  background-color: #fff;
-  border-bottom: 1px solid #e6e6e6;
-  padding: 0 20px;
+  background-color: rgba(2, 6, 23, 0.8); /* Semi-transparent bg-app */
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 24px;
+  height: 64px;
 }
 
 .header-content {
@@ -131,12 +166,8 @@ const handleCommand = (command: string) => {
 
 .title {
   font-size: 18px;
-  font-weight: 500;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .user-name {
@@ -145,16 +176,30 @@ const handleCommand = (command: string) => {
   gap: 8px;
   cursor: pointer;
   padding: 8px 12px;
-  border-radius: 4px;
-  transition: background-color 0.3s;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  transition: all 0.2s;
 }
 
 .user-name:hover {
-  background-color: #f5f7fa;
+  background-color: var(--bg-element);
+  color: var(--text-primary);
 }
 
 .main-content {
-  background-color: #f0f2f5;
-  padding: 20px;
+  padding: 24px;
+  background-color: var(--bg-app);
+  overflow-y: auto;
+}
+
+/* Page Transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

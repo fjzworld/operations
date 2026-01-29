@@ -1,0 +1,1 @@
+docker run --rm -v "D:/Users/feng/Desktop/ai/Antigravity/ops-platform/frontend:/app" node:20-alpine sh -c "cd /app && npm run build"

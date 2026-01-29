@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, List
 
 
 class Settings(BaseSettings):
@@ -22,12 +22,12 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # CORS
-    CORS_ORIGINS: list = [
-        "http://localhost:5173",
-        "http://localhost:3000", 
-        "http://localhost",
-        "http://192.168.3.41"
-    ]
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://localhost"
+    
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Convert CORS_ORIGINS string to list"""
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(',')]
     
     # Pagination
     DEFAULT_PAGE_SIZE: int = 20

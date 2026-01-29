@@ -3,11 +3,8 @@ import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
 
 // Use relative path - Nginx will handle routing to backend
-const getBaseURL = () => {
-    return '/api/v1'
-}
-
-const baseURL = import.meta.env.VITE_API_BASE_URL || getBaseURL()
+// Always use relative path to leverage Vite proxy (dev) or Nginx (prod)
+const baseURL = '/api/v1'
 
 class ApiClient {
     private instance: AxiosInstance
