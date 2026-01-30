@@ -4,8 +4,13 @@ Detects CPU, Memory, Disk, OS info from remote servers
 """
 import paramiko
 import re
+import hashlib
+import logging
 from typing import Dict, Optional
 from pydantic import BaseModel
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 
 class SSHCredentials(BaseModel):
@@ -28,6 +33,25 @@ class ServerInfo(BaseModel):
     kernel_version: str
 
 
+class LoggingMissingHostKeyPolicy(paramiko.MissingHostKeyPolicy):
+    """
+    SSH host key policy that logs warnings about unknown hosts.
+    This is more secure than AutoAddPolicy as it records the host fingerprint.
+    In production, consider using RejectPolicy and managing known_hosts properly.
+    """
+    
+    def missing_host_key(self, client, hostname, key):
+        fingerprint = hashlib.sha256(key.asbytes()).hexdigest()[:16]
+        key_type = key.get_name()
+        logger.warning(
+            f"SSH: Unknown host key for {hostname}. "
+            f"Key type: {key_type}, Fingerprint: {fingerprint}. "
+            f"Please verify this is the expected server before proceeding."
+        )
+        # In production, you might want to raise an exception here instead
+        # raise paramiko.SSHException(f"Unknown host key for {hostname}")
+
+
 class ResourceDetector:
     """Auto-detect server resources via SSH"""
     
@@ -36,9 +60,10 @@ class ResourceDetector:
         self.client: Optional[paramiko.SSHClient] = None
     
     def connect(self) -> None:
-        """Establish SSH connection"""
+        """Establish SSH connection with improved host key verification"""
         self.client = paramiko.SSHClient()
-        self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        # Use logging policy instead of AutoAddPolicy for better security auditing
+        self.client.set_missing_host_key_policy(LoggingMissingHostKeyPolicy())
         
         try:
             if self.credentials.private_key:

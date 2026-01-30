@@ -197,6 +197,10 @@ const resourceForm = reactive({
   ssh_username: 'root',
   ssh_password: '',
   ssh_private_key: '',
+  cpu_cores: 1,
+  memory_gb: 0,
+  disk_gb: 0,
+  os_type: '',
   description: ''
 })
 
@@ -245,6 +249,10 @@ const resetForm = () => {
   resourceForm.ssh_username = 'root'
   resourceForm.ssh_password = ''
   resourceForm.ssh_private_key = ''
+  resourceForm.cpu_cores = 1
+  resourceForm.memory_gb = 0
+  resourceForm.disk_gb = 0
+  resourceForm.os_type = ''
   resourceForm.description = ''
   authMethod.value = 'password'
 }
@@ -361,7 +369,7 @@ const handleSave = async () => {
       await resourceApi.create(payload)
       ElMessage.success('资源接入成功！Agent 已自动部署。')
     }
-
+    
     showCreateDialog.value = false
     editingResource.value = null
     loadResources()
@@ -374,10 +382,7 @@ const handleSave = async () => {
   }
 }
 
-// 页面加载时自动加载资源列表
-onMounted(() => {
-  loadResources()
-})
+onMounted(() => loadResources())
 </script>
 
 <style scoped>

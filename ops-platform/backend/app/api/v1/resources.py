@@ -11,6 +11,7 @@ from app.services.resource_detector import probe_server, SSHCredentials
 from app.services.agent_deployer import deploy_agent, uninstall_agent
 from app.core.security import create_access_token
 from app.core.encryption import encrypt_string
+from app.core.monitoring import update_metrics
 from datetime import timedelta
 
 router = APIRouter()
@@ -281,6 +282,14 @@ async def update_resource_metrics(
     resource.disk_usage = metrics.disk_usage
     resource.last_seen = datetime.utcnow()
     
+    # Update Prometheus metrics
+    update_metrics(
+        resource_id=str(resource.id),
+        resource_name=resource.name,
+        ip_address=resource.ip_address,
+        metrics=metrics.dict()
+    )
+    
     # Store historical metrics
     metric_record = Metric(
         resource_id=resource_id,
@@ -426,6 +435,9 @@ async def get_top_processes(
             for p in processes
         ]
     }
+
+
+@router.get("/stats/summary")
 async def get_resource_stats(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)

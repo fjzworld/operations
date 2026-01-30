@@ -66,6 +66,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import * as echarts from 'echarts'
 import { resourceApi } from '@/api/resources'
+import { monitoringApi } from '@/api/monitoring'
 
 const route = useRoute()
 const resourceId = parseInt(route.params.id as string)
@@ -87,10 +88,28 @@ const loadResource = async () => {
 
 const loadHistory = async () => {
   try {
-    const { data } = await resourceApi.getHistory(resourceId, 24)
-    renderTrendChart(data.metrics)
+    const end = Math.floor(Date.now() / 1000)
+    const start = end - 24 * 3600 // 24 hours ago
+    
+    // Fetch metrics from Prometheus
+    const [cpuRes, memRes, diskRes] = await Promise.all([
+      monitoringApi.getResourceCpuHistory(resourceId, start, end),
+      monitoringApi.getResourceMemoryHistory(resourceId, start, end),
+      monitoringApi.getResourceDiskHistory(resourceId, start, end)
+    ])
+
+    const cpuValues = cpuRes.data?.data?.result?.[0]?.values || []
+    const memValues = memRes.data?.data?.result?.[0]?.values || []
+    const diskValues = diskRes.data?.data?.result?.[0]?.values || []
+
+    const timestamps = cpuValues.map((item: any) => new Date(item[0] * 1000).toLocaleTimeString())
+    const cpuData = cpuValues.map((item: any) => parseFloat(item[1]).toFixed(1))
+    const memData = memValues.map((item: any) => parseFloat(item[1]).toFixed(1))
+    const diskData = diskValues.map((item: any) => parseFloat(item[1]).toFixed(1))
+
+    renderTrendChart(timestamps, cpuData, memData, diskData)
   } catch (error) {
-    console.error('Failed to load history:', error)
+    console.error('Failed to load history from Prometheus:', error)
   }
 }
 
@@ -103,17 +122,12 @@ const loadProcesses = async () => {
   }
 }
 
-const renderTrendChart = (metrics: any[]) => {
+const renderTrendChart = (timestamps: string[], cpuData: any[], memData: any[], diskData: any[]) => {
   if (!trendChartRef.value) return
 
   if (!trendChart) {
     trendChart = echarts.init(trendChartRef.value)
   }
-
-  const timestamps = metrics.map(m => new Date(m.timestamp).toLocaleTimeString())
-  const cpuData = metrics.map(m => m.cpu_usage)
-  const memData = metrics.map(m => m.memory_usage)
-  const diskData = metrics.map(m => m.disk_usage)
 
   trendChart.setOption({
     backgroundColor: 'transparent',

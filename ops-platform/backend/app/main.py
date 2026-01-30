@@ -2,8 +2,11 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.database import engine, Base
+from app.core.rate_limit import limiter
 from app.api.v1 import auth, users, resources, monitoring, alerts, automation
 
 # Create database tables
@@ -18,6 +21,10 @@ app = FastAPI(
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json"
 )
+
+# Add rate limiter to app
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS middleware
 app.add_middleware(
@@ -59,11 +66,24 @@ async def health_check():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler"""
-    return JSONResponse(
-        status_code=500,
-        content={"detail": f"Internal server error: {str(exc)}"}
-    )
+    """Global exception handler - 生产环境不暴露详细错误信息"""
+    import traceback
+    
+    # 记录详细错误日志（用于调试）
+    error_trace = traceback.format_exc()
+    print(f"[ERROR] {request.method} {request.url}: {str(exc)}\n{error_trace}")
+    
+    # 生产环境返回通用错误，开发环境返回详细信息
+    if settings.DEBUG:
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Internal server error: {str(exc)}"}
+        )
+    else:
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"}
+        )
 
 
 if __name__ == "__main__":

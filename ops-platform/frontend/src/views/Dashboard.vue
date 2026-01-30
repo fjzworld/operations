@@ -10,14 +10,20 @@
             <el-icon :size="24"><Box /></el-icon>
           </div>
           <div class="stat-text">
-            <span class="label">资源总量</span>
+            <span class="label">资源状态</span>
             <div class="value-group">
-              <span class="value">{{ dashboardData.total_resources || 0 }}</span>
-              <span class="unit">NODES</span>
+              <span class="value">{{ dashboardData.online_resources || 0 }}</span>
+              <span class="unit">/ {{ dashboardData.total_resources || 0 }} ONLINE</span>
             </div>
           </div>
         </div>
-        <div class="trend-line blue-trend"></div>
+        <el-progress 
+          :percentage="dashboardData.total_resources ? (dashboardData.online_resources / dashboardData.total_resources) * 100 : 0" 
+          :show-text="false" 
+          :stroke-width="4"
+          color="#38bdf8"
+          class="mini-progress"
+        />
       </div>
 
       <!-- CPU Usage -->
@@ -27,7 +33,7 @@
             <el-icon :size="24"><Cpu /></el-icon>
           </div>
           <div class="stat-text">
-            <span class="label">CPU 负载</span>
+            <span class="label">平均负载 (CPU)</span>
             <div class="value-group">
               <span class="value">{{ dashboardData.average_cpu_usage?.toFixed(1) || 0 }}</span>
               <span class="unit">%</span>
@@ -43,53 +49,47 @@
         />
       </div>
 
-      <!-- Memory Usage -->
+      <!-- Network Traffic -->
       <div class="hud-card glass-panel">
         <div class="stat-content">
           <div class="icon-wrapper orange">
             <el-icon :size="24"><Connection /></el-icon>
           </div>
           <div class="stat-text">
-            <span class="label">内存使用</span>
+            <span class="label">实时流量</span>
             <div class="value-group">
-              <span class="value">{{ dashboardData.average_memory_usage?.toFixed(1) || 0 }}</span>
-              <span class="unit">%</span>
+              <span class="value">{{ dashboardData.total_network_traffic?.toFixed(1) || 0 }}</span>
+              <span class="unit">MB/s</span>
             </div>
           </div>
         </div>
-        <el-progress 
-          :percentage="dashboardData.average_memory_usage || 0" 
-          :show-text="false" 
-          :stroke-width="4"
-          color="#EAB308"
-          class="mini-progress"
-        />
+        <div class="trend-line orange-trend"></div>
       </div>
 
-      <!-- Alerts -->
+      <!-- Alerts (Placeholder) -->
       <div class="hud-card glass-panel alert-mode">
         <div class="stat-content">
           <div class="icon-wrapper red">
             <el-icon :size="24"><Warning /></el-icon>
           </div>
           <div class="stat-text">
-            <span class="label">实时告警</span>
+            <span class="label">系统状态</span>
             <div class="value-group">
-              <span class="value danger">{{ alertStats.firing || 0 }}</span>
-              <span class="unit">ACTIVE</span>
+              <span class="value success">NORMAL</span>
             </div>
           </div>
         </div>
-        <div class="pulse-dot"></div>
+        <div class="pulse-dot green-pulse"></div>
       </div>
     </div>
 
     <!-- Charts Row -->
     <div class="charts-grid">
+      <!-- CPU Trend (Left) -->
       <div class="hud-panel glass-panel large">
         <div class="panel-header">
           <h3 class="panel-title">
-            <el-icon><TrendCharts /></el-icon> CPU 负载 Top 5
+            <el-icon><TrendCharts /></el-icon> 负载 Top 5
           </h3>
           <div class="panel-actions">
             <span class="live-tag">LIVE</span>
@@ -98,13 +98,16 @@
         <div ref="cpuChartRef" class="chart-container"></div>
       </div>
 
-      <div class="hud-panel glass-panel small">
+      <!-- Hex Grid (Right) -->
+      <div class="hud-panel glass-panel large">
         <div class="panel-header">
           <h3 class="panel-title">
-            <el-icon><PieChart /></el-icon> 资源分布
+            <el-icon><PieChart /></el-icon> 集群健康矩阵
           </h3>
         </div>
-        <div ref="typeChartRef" class="chart-container"></div>
+        <div class="hex-container">
+          <HexGrid :nodes="dashboardData.all_resources_status || []" />
+        </div>
       </div>
     </div>
 
@@ -156,17 +159,15 @@ import { Box, Connection, Cpu, Warning, TrendCharts, PieChart, List } from '@ele
 import * as echarts from 'echarts'
 import { monitoringApi } from '@/api/monitoring'
 import { resourceApi } from '@/api/resources'
-import { alertApi } from '@/api/alerts'
+import HexGrid from '@/components/HexGrid.vue'
 
 // --- State ---
 const dashboardData = ref<any>({})
 const resourceStats = ref<any>({})
 const alertStats = ref<any>({})
 const cpuChartRef = ref<HTMLElement>()
-const typeChartRef = ref<HTMLElement>()
 
 let cpuChart: echarts.ECharts | null = null
-let typeChart: echarts.ECharts | null = null
 
 // --- Helpers ---
 const getProgressColor = (percentage: number) => {
@@ -181,7 +182,7 @@ const handleCardClick = () => {
 
 // --- Charts ---
 const initCharts = () => {
-  if (!cpuChartRef.value || !typeChartRef.value) return
+  if (!cpuChartRef.value) return
 
   // 1. CPU Bar Chart (Cyberpunk Style)
   cpuChart = echarts.init(cpuChartRef.value)
@@ -226,56 +227,17 @@ const initCharts = () => {
       }
     }]
   })
-
-  // 2. Type Pie Chart (Holo Style)
-  typeChart = echarts.init(typeChartRef.value)
-  const typeData = Object.entries(resourceStats.value.by_type || {}).map(([name, value]) => ({
-    name,
-    value
-  }))
-  
-  typeChart.setOption({
-    tooltip: { 
-      trigger: 'item',
-      backgroundColor: 'rgba(15, 23, 42, 0.9)',
-      borderColor: '#334155',
-      textStyle: { color: '#F8FAFC' }
-    },
-    legend: { 
-      orient: 'vertical', 
-      right: 0, 
-      top: 'center',
-      textStyle: { color: '#94A3B8' },
-      icon: 'circle'
-    },
-    series: [{
-      type: 'pie',
-      radius: ['40%', '70%'],
-      center: ['35%', '50%'],
-      avoidLabelOverlap: false,
-      itemStyle: {
-        borderRadius: 5,
-        borderColor: '#020617',
-        borderWidth: 2
-      },
-      label: { show: false },
-      data: typeData,
-      color: ['#38bdf8', '#22c55e', '#eab308', '#ef4444', '#a855f7']
-    }]
-  })
 }
 
 const loadData = async () => {
   try {
-    const [dashboardRes, statsRes, alertStatsRes] = await Promise.all([
+    const [dashboardRes, statsRes] = await Promise.all([
       monitoringApi.getDashboard(),
       resourceApi.getStats(),
-      alertApi.getStats()
     ])
     
     dashboardData.value = dashboardRes.data
     resourceStats.value = statsRes.data
-    alertStats.value = alertStatsRes.data
     
     initCharts()
   } catch (error) {
@@ -286,7 +248,6 @@ const loadData = async () => {
 // --- Lifecycle ---
 const resizeHandler = () => {
   cpuChart?.resize()
-  typeChart?.resize()
 }
 
 onMounted(() => {
@@ -297,7 +258,6 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', resizeHandler)
   cpuChart?.dispose()
-  typeChart?.dispose()
 })
 </script>
 
@@ -386,6 +346,7 @@ onUnmounted(() => {
 }
 
 .value.danger { color: #EF4444; text-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+.value.success { color: #22C55E; text-shadow: 0 0 10px rgba(34, 197, 94, 0.4); }
 
 .unit {
   font-size: 12px;
@@ -409,7 +370,7 @@ onUnmounted(() => {
 
 .charts-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 24px;
 }
 
@@ -417,6 +378,16 @@ onUnmounted(() => {
   padding: 20px;
   display: flex;
   flex-direction: column;
+}
+
+.hex-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0,0,0,0.2);
+  border-radius: 8px;
+  min-height: 300px;
 }
 
 .panel-header {
