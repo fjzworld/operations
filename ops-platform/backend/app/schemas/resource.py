@@ -106,3 +106,22 @@ class ResourceDeleteRequest(BaseModel):
     ssh_password: Optional[str] = None
     ssh_private_key: Optional[str] = None
 
+
+class ResourceStats(BaseModel):
+    """Resource statistics summary"""
+    total: int
+    active: int
+    inactive: int
+    by_type: Dict[str, int]
+
+
+class MessageResponse(BaseModel):
+    """Generic message response schema"""
+    message: str
+
+
+class MetricResponse(BaseModel):
+    """Resource metrics response"""
+    resource_id: int
+    metrics: List[Dict]
+    processes: List[Dict]

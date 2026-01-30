@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { authApi } from '@/api/auth'
-import type { LoginData } from '@/api/auth'
+import type { LoginData, User } from '@/types/user'
 
 export const useAuthStore = defineStore('auth', () => {
-    const user = ref<any>(null)
+    const user = ref<User | null>(null)
     const token = ref<string | null>(localStorage.getItem('token'))
 
     const login = async (credentials: LoginData) => {

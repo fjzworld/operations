@@ -2,9 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
-
-// 定义用户角色类型
-export type UserRole = 'admin' | 'operator' | 'user' | 'readonly'
+import type { UserRole } from '@/types/user'
 
 const routes: RouteRecordRaw[] = [
     {

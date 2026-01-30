@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
@@ -7,6 +8,7 @@ from app.api.v1.auth import get_current_active_user
 import httpx
 import os
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
@@ -149,7 +151,7 @@ async def get_dashboard_data(
             }
 
         except Exception as e:
-            print(f"Dashboard data fetch failed: {e}")
+            logger.error(f"Dashboard data fetch failed: {e}", exc_info=True)
             # Fallback to DB if Prometheus fails
             resources = db.query(Resource).all()
             if resources:

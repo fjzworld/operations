@@ -7,7 +7,7 @@ from app.models.user import User
 from app.models.alert import Alert, AlertRule, AlertStatus, AlertSeverity
 from app.schemas.alert import (
     AlertRuleCreate, AlertRuleUpdate, AlertRuleInDB,
-    AlertInDB, AlertAcknowledge
+    AlertInDB, AlertAcknowledge, AlertStats, MessageResponse
 )
 from app.api.v1.auth import get_current_active_user
 
@@ -92,7 +92,7 @@ async def update_alert_rule(
     return rule
 
 
-@router.delete("/rules/{rule_id}")
+@router.delete("/rules/{rule_id}", response_model=MessageResponse)
 async def delete_alert_rule(
     rule_id: int,
     current_user: User = Depends(get_current_active_user),
@@ -158,7 +158,7 @@ async def get_alert(
     return alert
 
 
-@router.post("/{alert_id}/acknowledge")
+@router.post("/{alert_id}/acknowledge", response_model=MessageResponse)
 async def acknowledge_alert(
     alert_id: int,
     ack_data: AlertAcknowledge,
@@ -182,7 +182,7 @@ async def acknowledge_alert(
     return {"message": "Alert acknowledged successfully"}
 
 
-@router.post("/{alert_id}/resolve")
+@router.post("/{alert_id}/resolve", response_model=MessageResponse)
 async def resolve_alert(
     alert_id: int,
     current_user: User = Depends(get_current_active_user),
@@ -204,7 +204,7 @@ async def resolve_alert(
     return {"message": "Alert resolved successfully"}
 
 
-@router.get("/stats/summary")
+@router.get("/stats/summary", response_model=AlertStats)
 async def get_alert_stats(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)

@@ -3,12 +3,15 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 
-# Create database engine
+# Create database engine with optimized connection pool
 engine = create_engine(
     settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20
+    pool_pre_ping=True,      # Verify connections before using
+    pool_size=10,            # Base pool size
+    max_overflow=20,         # Max extra connections under load
+    pool_recycle=3600,       # Recycle connections after 1 hour
+    pool_timeout=30,         # Wait up to 30s for available connection
+    echo=settings.DEBUG      # Log SQL in debug mode
 )
 
 # Create session factory

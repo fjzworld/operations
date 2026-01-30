@@ -1,19 +1,24 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.core.database import get_db
 from app.models.user import User
 from app.models.resource import Resource, ResourceType, ResourceStatus
-from app.schemas.resource import ResourceCreate, ResourceUpdate, ResourceInDB, ResourceMetrics, ResourceProbeRequest, ResourceProbeResponse, ResourceDeleteRequest
+from app.schemas.resource import (
+    ResourceCreate, ResourceUpdate, ResourceInDB,
+    ResourceMetrics, ResourceProbeRequest, ResourceProbeResponse,
+    ResourceDeleteRequest, ResourceStats, MessageResponse, MetricResponse
+)
 from app.api.v1.auth import get_current_active_user
 from app.services.resource_detector import probe_server, SSHCredentials
 from app.services.agent_deployer import deploy_agent, uninstall_agent
 from app.core.security import create_access_token
 from app.core.encryption import encrypt_string
-from app.core.monitoring import update_metrics
-from datetime import timedelta
+from app.core.monitoring import update_metrics, clear_metrics, update_resource_status
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -85,7 +90,7 @@ async def create_resource(
         auto_discovery = True
         try:
             # 1. Probe Server
-            print(f"Auto-probing server: {resource_data.ip_address}")
+            logger.info(f"Auto-probing server: {resource_data.ip_address}")
             credentials = SSHCredentials(
                 host=resource_data.ip_address,
                 port=resource_data.ssh_port,
@@ -132,7 +137,7 @@ async def create_resource(
     # 3. Deploy Agent (Async/Background ideally, but doing sync for simplicity now)
     if auto_discovery:
         try:
-            print(f"Auto-deploying agent to {db_resource.name}...")
+            logger.info(f"Auto-deploying agent to {db_resource.name}...")
             # Generate Token
             access_token_expires = timedelta(days=365*10)
             api_token = create_access_token(
@@ -151,12 +156,12 @@ async def create_resource(
             )
             
             if success:
-                print(f"Agent deployed successfully to {db_resource.name}")
+                logger.info(f"Agent deployed successfully to {db_resource.name}")
             else:
-                print(f"Agent deployment failed for {db_resource.name}")
+                logger.warning(f"Agent deployment failed for {db_resource.name}")
                 # We don't rollback creation, just warn
         except Exception as e:
-            print(f"Error deploying agent: {e}")
+            logger.error(f"Error deploying agent: {e}", exc_info=True)
     
     return db_resource
 
@@ -187,7 +192,7 @@ async def update_resource(
     return resource
 
 
-@router.delete("/{resource_id}")
+@router.delete("/{resource_id}", response_model=MessageResponse)
 async def delete_resource(
     resource_id: int,
     delete_request: Optional[ResourceDeleteRequest] = None,
@@ -217,10 +222,10 @@ async def delete_resource(
     agent_uninstalled = False
     uninstall_error = None
     
-    print(f"收到删除请求: resource_id={resource_id}, payload={delete_request}")
+    logger.info(f"收到删除请求: resource_id={resource_id}, payload={delete_request}")
     
     if delete_request and delete_request.uninstall_agent and resource.ip_address:
-        print(f"准备卸载 Agent: host={resource.ip_address}, user={delete_request.ssh_username}")
+        logger.info(f"准备卸载 Agent: host={resource.ip_address}, user={delete_request.ssh_username}")
         try:
             credentials = SSHCredentials(
                 host=resource.ip_address,
@@ -230,19 +235,26 @@ async def delete_resource(
                 private_key=delete_request.ssh_private_key
             )
             
-            print(f"正在从 {resource.ip_address} 卸载 Agent...")
+            logger.info(f"正在从 {resource.ip_address} 卸载 Agent...")
             agent_uninstalled = uninstall_agent(credentials)
             
             if agent_uninstalled:
-                print(f"✓ Agent 已从 {resource.ip_address} 卸载")
+                logger.info(f"✓ Agent 已从 {resource.ip_address} 卸载")
             else:
-                print(f"⚠ Agent 卸载失败，但继续删除资源")
+                logger.warning(f"Agent 卸载失败，但继续删除资源")
                 uninstall_error = "Agent 卸载失败（可能已被手动删除）"
                 
         except Exception as e:
-            print(f"⚠ 卸载 Agent 时出错: {e}")
+            logger.error(f"卸载 Agent 时出错: {e}")
             uninstall_error = str(e)
             # 继续删除资源，即使 Agent 卸载失败
+    
+    # Clear Prometheus metrics for this resource before deletion
+    clear_metrics(
+        resource_id=str(resource.id),
+        resource_name=resource.name,
+        ip_address=resource.ip_address or ""
+    )
     
     # Delete resource from database
     db.delete(resource)
@@ -259,7 +271,7 @@ async def delete_resource(
     return response
 
 
-@router.post("/{resource_id}/metrics")
+@router.post("/{resource_id}/metrics", response_model=ResourceInDB)
 async def update_resource_metrics(
     resource_id: int,
     metrics: ResourceMetrics,
@@ -361,7 +373,7 @@ async def check_alert_thresholds(resource: Resource, metrics: ResourceMetrics, d
         db.commit()
 
 
-@router.get("/{resource_id}/metrics/history")
+@router.get("/{resource_id}/metrics/history", response_model=MetricResponse)
 async def get_metrics_history(
     resource_id: int,
     hours: int = Query(24, ge=1, le=168),  # Last 24 hours by default, max 1 week
@@ -405,7 +417,7 @@ async def get_metrics_history(
     }
 
 
-@router.get("/{resource_id}/processes")
+@router.get("/{resource_id}/processes", response_model=MetricResponse)
 async def get_top_processes(
     resource_id: int,
     current_user: User = Depends(get_current_active_user),
@@ -437,7 +449,7 @@ async def get_top_processes(
     }
 
 
-@router.get("/stats/summary")
+@router.get("/stats/summary", response_model=ResourceStats)
 async def get_resource_stats(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -502,7 +514,7 @@ async def probe_resource(
         )
 
 
-@router.post("/{resource_id}/deploy-agent")
+@router.post("/{resource_id}/deploy-agent", response_model=MessageResponse)
 async def deploy_monitoring_agent(
     resource_id: int,
     probe_request: ResourceProbeRequest,

@@ -2,6 +2,7 @@
 Rate limiting configuration for API endpoints
 Uses Redis as storage backend for distributed rate limiting
 """
+import logging
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -9,6 +10,8 @@ from app.core.config import settings
 from functools import wraps
 from fastapi import Request, HTTPException
 import redis
+
+logger = logging.getLogger(__name__)
 
 # Initialize Redis client for rate limiting
 redis_client = redis.from_url(
@@ -77,9 +80,9 @@ def check_rate_limit(request: Request, max_requests: int = 60, window: int = 60)
             )
         else:
             redis_client.incr(key)
-    except redis.RedisError:
-        # If Redis is down, allow the request (fail open)
-        pass
+    except redis.RedisError as e:
+        # If Redis is down, allow the request (fail open) but log warning
+        logger.warning(f"Redis unavailable for rate limiting: {e}. Allowing request.")
 
 
 # Exception handler for rate limit exceeded

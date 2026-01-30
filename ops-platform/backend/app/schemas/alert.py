@@ -71,3 +71,17 @@ class AlertInDB(AlertBase):
 class AlertAcknowledge(BaseModel):
     """Schema for acknowledging an alert"""
     acknowledged_by: str
+
+
+class AlertStats(BaseModel):
+    """Schema for alert statistics summary"""
+    total: int
+    firing: int
+    acknowledged: int
+    resolved: int
+    by_severity: Dict[str, int]
+
+
+class MessageResponse(BaseModel):
+    """Generic message response schema"""
+    message: str
